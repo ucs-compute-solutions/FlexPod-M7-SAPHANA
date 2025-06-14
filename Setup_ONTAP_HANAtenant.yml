@@ -1,0 +1,51 @@
+---
+#Execute the below ONTAP Role after Nexus playbook
+- name: Configure ONTAP for FlexPod with SAP HANA Implementation
+  hosts: ontaptenant
+  gather_facts: False
+  vars_files:
+    - group_vars_tenant/secrets.yml
+    - group_vars_tenant/ontap
+    - group_vars_tenant/all.yml
+    - vars_tenant/ontap_main.yml
+  connection: local
+  roles:
+  - { role: ONTAPSAPHANA/hana_network, tags: [ 'hana_network' ] }
+  - { role: ONTAPSAPHANA/hana_svm, tags: [ 'hana_svm' ] }
+  - { role: ONTAPSAPHANA/hana_volumes, tags: [ 'hana_volumes' ] }
+  - { role: ONTAPSAPHANA/hana_lifs, tags: [ 'hana_lifs' ] }
+  tags:
+  - ontap_hanaconfig_part_1
+  - flexpod_hanaconfig
+
+#Execute the below ONTAP Role after UCS playbook
+- name: Configure ONTAP Storage Setup for FC implementation
+  hosts: ontaptenant
+  gather_facts: False
+  vars_files:
+    - group_vars_tenant/secrets.yml
+    - group_vars_tenant/ontap
+    - group_vars_tenant/all.yml
+    - vars_tenant/ontap_main.yml
+  connection: local
+  roles:
+  - { role: ONTAPSAPHANA/hana_luns, tags: [ 'hana_luns' ] }
+  tags:
+  - ontap_hanaconfig_part_2
+  - flexpod_hanaconfig
+
+#Execute the below ONTAP Role after installing and configuring Hosts
+- name: Finalize ONTAP storage Setup
+  hosts: ontaptenant
+  gather_facts: False
+  vars_files:
+    - group_vars_tenant/secrets.yml
+    - group_vars_tenant/ontap
+    - group_vars_tenant/all.yml
+    - vars_tenant/ontap_main.yml
+  connection: local
+  roles:
+  - { role: ONTAPSAPHANA/hana_finalize_setup, tags: [ 'hana_finalize_setup' ] }
+  tags:
+  - ontap_hanaconfig_part_3
+  - flexpod_hanaconfig

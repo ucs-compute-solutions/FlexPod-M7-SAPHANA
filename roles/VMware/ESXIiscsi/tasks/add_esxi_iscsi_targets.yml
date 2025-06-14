@@ -1,0 +1,11 @@
+---
+#
+#
+# Using SSH method for direct ESXi connection
+#
+  - name: Add iSCSI Targets to each host via SSH
+    ansible.builtin.command: esxcli iscsi adapter discovery sendtarget add --address='{{ item }}':3260 --adapter=vmhba64
+    with_list: "{{ iscsi_targets }}"
+    when: configure_iscsi == 'true'
+    ignore_errors: yes  # In case target already exists
+

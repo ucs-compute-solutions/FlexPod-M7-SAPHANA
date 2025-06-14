@@ -1,0 +1,36 @@
+---
+#
+#  VSAN number to use used for a the fabric being created
+  vsan_id: "{{ vsan_A_id }}"
+  vsan_name: "{{ vsan_A_name }}"
+#
+# The zone names and zoneset name used in the configuration
+  zoneset_name: FlexPod-Fabric-A
+  fcp_zone_name: "FCP-{{ tenant_specs.svm_name }}-A"
+#
+# Device alias lists using device names and PWWNs from CVD.  Update the PWWNs to match your deployment.
+  fcp_device_alias_list:
+    - device_name: "{{ tenant_specs.svm_name }}-fcp-lif-01a"
+      pwwn: "{{ fcp_hana_01a }}"
+      dev_type: target
+    - device_name: "{{ tenant_specs.svm_name }}-fcp-lif-02a"
+      pwwn: "{{ fcp_hana_02a }}"
+      dev_type: target
+
+# Server Initiators are put in here. The number should match the number for fc_bm_hosts in group_vars/all.yml. 
+# Three are put in here, with any unused commented out.
+
+    - device_name: "FCP-{{ fc_bm_hosts[0].hostname }}-A"
+      pwwn: "{{ fc_bm_hosts[0].fcp_a_wwpn }}"
+      dev_type: initiator
+    - device_name: "FCP-{{ fc_bm_hosts[1].hostname }}-A"
+      pwwn: "{{ fc_bm_hosts[1].fcp_a_wwpn }}"
+      dev_type: initiator
+    - device_name: "FCP-{{ fc_bm_hosts[2].hostname }}-A"
+      pwwn: "{{ fc_bm_hosts[2].fcp_a_wwpn }}"
+      dev_type: initiator
+
+    - device_name: "FCP-{{ fc_bm_hosts[3].hostname }}-A"
+      pwwn: "{{ fc_bm_hosts[3].fcp_a_wwpn }}"
+      dev_type: initiator
+

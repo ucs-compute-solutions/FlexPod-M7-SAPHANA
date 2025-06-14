@@ -1,0 +1,159 @@
+---
+# Create data, log, and shared FC LUNs for SAP HANA Scale-Up Systems
+- name: Create data, log, and shared FC LUNs for SAP HANA Scale-Up Systems
+  netapp.ontap.na_ontap_lun:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    name: "{{item.name}}"
+    size: "{{item.size}}"
+    flexvol_name: "{{item.residing_vol}}"
+    os_type: "{{tenant_specs.scaleup_os_type}}"
+    space_reserve: false
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{tenant_specs.scaleup_fc_luns}}"
+  when:
+    - tenant_specs.scaleup_fc_luns is not none      
+    - "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_create_fcp_luns_scaleup
+
+# Getting the FCP igroup names with their corresponding WWPNs for SAP HANA Scale-Up Systems
+- name: Get the FCP igroup names with their corresponding WWPNs for SAP HANA Scale-Up Systems
+  ansible.builtin.set_fact:
+    fcp_igroup_wwpn_list_scaleup: "{{ fcp_igroup_wwpn_list_scaleup|default([]) + [ {'igroup_name': item.hostname, 'wwpns': [item.fcp_a_wwpn,item.fcp_b_wwpn]} ] }}"
+  with_items:
+    - "{{scaleup_fc_hosts}}"
+  when:
+    - scaleup_fc_hosts is not none      
+    - "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_create_igroup_fcp_scaleup
+
+# Create igroup for FCP under Scale-Up Systems
+# For FCP, we need to add multiple WWPNs from the single host to an igroup
+- name: Create the FCP igroup for SAP HANA Scale-Up Systems
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    initiators: "{{item.wwpns}}"
+    os_type: "{{tenant_specs.scaleup_os_type}}"
+    initiator_group_type: fcp
+    name: "{{item.igroup_name}}"
+    bind_portset: "{{tenant_specs.portset_name}}"
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{fcp_igroup_wwpn_list_scaleup | default([])}}"
+  when: 
+    - fcp_igroup_wwpn_list_scaleup is defined
+    - fcp_igroup_wwpn_list_scaleup | length > 0  
+    - "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_create_igroup_fcp_scaleup
+
+# Map the LUNs to FCP igroups under SAP HANA Scale-Up Systems
+- name: Mapping LUNs to FCP igroup under SAP HANA Scale-Up Systems
+  netapp.ontap.na_ontap_lun_map:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    initiator_group_name: "{{item.0.hostname}}"
+    path: /vol/{{item.1.residing_vol}}/{{item.1.name}}
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_nested:
+    - "{{scaleup_fc_hosts}}"
+    - "{{tenant_specs.scaleup_fc_luns}}"
+  when: 
+    - scaleup_fc_hosts is not none 
+    - tenant_specs.scaleup_fc_luns is not none
+    - "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_map_luns_to_igroup_fc_scaleup
+
+# Create data, log, and shared FC LUNs for SAP HANA Scale-Out Systems
+- name: Create data, log, and shared FC LUNs for SAP HANA Scale-Out Systems
+  netapp.ontap.na_ontap_lun:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    name: "{{item.name}}"
+    size: "{{item.size}}"
+    flexvol_name: "{{item.residing_vol}}"
+    os_type: "{{tenant_specs.scaleout_os_type}}"
+    space_reserve: false
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{tenant_specs.scaleout_fc_luns}}"
+  when: 
+    - tenant_specs.scaleout_fc_luns is not none 
+    - "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_create_fcp_luns_scaleout
+
+# Getting the FCP igroup WWPNs for SAP HANA Scale-Out Systems
+- name: Get the FCP igroup WWPNs for SAP HANA Scale-Out Systems
+  ansible.builtin.set_fact:
+    fcp_igroup_wwpn_list_scaleout: "{{ fcp_igroup_wwpn_list_scaleout | default([]) + [item.fcp_a_wwpn,item.fcp_b_wwpn] }}"
+  with_items:
+    - "{{scaleout_fc_hosts}}"
+  when:
+    - scaleout_fc_hosts is not none 
+    - "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_create_igroup_fcp_scaleout
+
+# Create igroup for FCP under Scale-Out Systems
+# For FCP, we need to add multiple WWPNs from multiple hosts to an igroup
+- name: Create the FCP igroup for SAP HANA Scale-Out Systems
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    initiators: "{{fcp_igroup_wwpn_list_scaleout}}"
+    os_type: "{{tenant_specs.scaleout_os_type}}"
+    initiator_group_type: fcp
+    name: "{{tenant_specs.scaleout_igroup_name}}"
+    bind_portset: "{{tenant_specs.portset_name}}"
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  when: 
+    - fcp_igroup_wwpn_list_scaleout is not none 
+    - "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_create_igroup_fcp_scaleout
+
+# Map the LUNs to FCP igroups under SAP HANA Scale-Out Systems
+- name: Mapping LUNs to FCP igroup under SAP HANA Scale-Out Systems
+  netapp.ontap.na_ontap_lun_map:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    initiator_group_name: "{{tenant_specs.scaleout_igroup_name}}"
+    path: /vol/{{item.residing_vol}}/{{item.name}}
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{tenant_specs.scaleout_fc_luns}}"
+  when: 
+    - tenant_specs.scaleout_fc_luns is not none 
+    - "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_map_luns_to_igroups_fc_scaleout

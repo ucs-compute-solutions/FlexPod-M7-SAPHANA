@@ -1,0 +1,184 @@
+---
+# Create HANA data LIFs for NFS access
+- name: Create HANA data LIFs for NFS access
+  netapp.ontap.na_ontap_interface:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    service_policy: default-data-files
+    home_node: "{{item.0.node_name}}"
+    home_port: "{{item.2}}-{{item.1.id}}"
+    address: "{{item.0.nfs_data_lifs.address}}"
+    netmask: "{{item.0.nfs_data_lifs.netmask}}"
+    interface_name: "{{item.0.nfs_data_lifs.name}}"
+    admin_status: up
+    failover_policy: broadcast-domain-wide
+    is_auto_revert: true
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_nested:
+    - "{{ ha_pairs | map(attribute='node_specs') | flatten }}"
+    - "{{storage_vlan_list}}"
+    - "{{ifgrp_name}}"
+  when:
+    - "('nfs' in tenant_specs.allowed_protocols)"
+    - item.1.usage == "data"
+  tags:
+    - ontap_hana_data_lifs
+
+# Create HANA log LIFs for NFS access
+- name: Create HANA log LIFs for NFS access
+  netapp.ontap.na_ontap_interface:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    service_policy: default-data-files
+    home_node: "{{item.0.node_name}}"
+    home_port: "{{item.2}}-{{item.1.id}}"
+    address: "{{item.0.nfs_log_lifs.address}}"
+    netmask: "{{item.0.nfs_log_lifs.netmask}}"
+    interface_name: "{{item.0.nfs_log_lifs.name}}"
+    admin_status: up
+    failover_policy: broadcast-domain-wide
+    is_auto_revert: true
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_nested:
+    - "{{ ha_pairs | map(attribute='node_specs') | flatten }}"
+    - "{{storage_vlan_list}}"
+    - "{{ifgrp_name}}"
+  when:
+    - "('nfs' in tenant_specs.allowed_protocols)"
+    - item.1.usage == "log"
+  tags:
+    - ontap_hana_log_lifs
+
+# Create HANA shared LIFs for NFS access
+- name: Create HANA shared LIFs for NFS access
+  netapp.ontap.na_ontap_interface:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    service_policy: default-data-files
+    home_node: "{{item.0.node_name}}"
+    home_port: "{{item.2}}-{{item.1.id}}"
+    address: "{{item.0.nfs_shared_lifs.address}}"
+    netmask: "{{item.0.nfs_shared_lifs.netmask}}"
+    interface_name: "{{item.0.nfs_shared_lifs.name}}"
+    admin_status: up
+    failover_policy: broadcast-domain-wide
+    is_auto_revert: true
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_nested:
+    - "{{ ha_pairs | map(attribute='node_specs') | flatten }}"
+    - "{{storage_vlan_list}}"
+    - "{{ifgrp_name}}"
+  when:
+    - "('nfs' in tenant_specs.allowed_protocols)"
+    - item.1.usage == "shared"
+  tags:
+    - ontap_hana_shared_lifs
+
+# Create HANA FCP LIF(s) on Nodes
+- name: Create HANA FCP LIFs on Nodes
+  netapp.ontap.na_ontap_interface:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    data_protocol: fcp
+    home_node: "{{item.0.node_name}}"
+    home_port: "{{item.1.home_port}}"
+    interface_name: "{{item.1.name}}"
+    interface_type: fc
+    admin_status: up
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_subelements:
+    - "{{ ha_pairs | map(attribute='node_specs') | flatten }}"
+    - fcp_lifs
+  when: "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_hana_fcp_lifs
+
+# Create the FCP port list variable for portset configuration
+- name: Create the FCP port list variable for portset configuration
+  ansible.builtin.set_fact:
+    fcp_port_list: "{{ fcp_port_list | default([]) + [item.name] }}"
+  with_items:
+    - "{{ ha_pairs | map(attribute='node_specs') | flatten | map(attribute='fcp_lifs') | flatten }}" 
+  when: "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_portset_config
+
+# See the fcp port list
+- name: See the fcp port list
+  ansible.builtin.debug: var=fcp_port_list
+  when: "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_portset_config
+
+# Create portset for HANA SVM
+- name: Create a portset for HANA SVM with required FCP LIFs
+  netapp.ontap.na_ontap_portset:
+    state: present
+    name: "{{tenant_specs.portset_name}}"
+    ports: "{{fcp_port_list}}"
+    type: fcp
+    vserver: "{{tenant_specs.svm_name}}"
+    use_rest: always
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  when: "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_portset_config
+
+# Add HANA SVM Management Interface
+- name: Create LIF for HANA SVM Management
+  netapp.ontap.na_ontap_interface:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    service_policy: default-management
+    home_node: "{{tenant_specs.svm_mgmt_lif.home_node}}"
+    home_port: "{{ifgrp_name}}-{{item.id}}"
+    address: "{{tenant_specs.svm_mgmt_lif.address}}"
+    netmask: "{{tenant_specs.svm_mgmt_lif.netmask}}"
+    interface_name: "{{tenant_specs.svm_mgmt_lif.lif_name}}"
+    admin_status: up
+    failover_policy: broadcast-domain-wide
+    is_auto_revert: true
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{ ib_mgmt_vlan_list }}"
+  tags:
+    - ontap_svm_mgmt_lif
+
+# Create a default route in HANA SVM
+- name: Create a default route in HANA SVM
+  netapp.ontap.na_ontap_net_routes:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    destination: "0.0.0.0/0"
+    gateway: "{{tenant_specs.svm_mgmt_lif.gateway}}"
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  tags:
+    - ontap_svm_default_route

@@ -1,0 +1,132 @@
+---
+- name: "Configure SAN Connectivity Policy"
+  vars:
+    api_info: &api_info
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+  block:
+  
+  # Check if SAN Connectivity Policy already exists
+  - name: "Check if SAN Connectivity Policy exists"
+    cisco.intersight.intersight_rest_api:
+      <<: *api_info
+      resource_path: /vnic/SanConnectivityPolicies
+      query_params:
+        $filter: "Name eq '{{ name_of_san_connectivity_policy }}'"
+    register: existing_san_policy
+    failed_when: false
+
+  # Debug the API response structure
+  - name: "Debug existing SAN policy response"
+    debug:
+      var: existing_san_policy.api_response
+    when: false  # Set to true for debugging
+
+  # Create SAN Connectivity Policy only if it doesn't exist
+  - name: "SAN Connectivity Policy for FC"
+    cisco.intersight.intersight_rest_api:
+      <<: *api_info
+      resource_path: /vnic/SanConnectivityPolicies
+      api_body: {
+        "Name": "{{ name_of_san_connectivity_policy }}",
+        "Description": "{{ description_of_san_connectivity_policy }}",
+        "Organization": {
+           "Moid": "{{ intersight_org.api_response.Moid }}"
+         },
+        "Tags": [{"Key": "configmode", "Value": "ansible"},{"Key": "prefix", "Value": "{{ prefix }}"}],
+        "TargetPlatform": "FIAttached",
+        "PlacementMode": "custom",
+        "WwnnAddressType": "POOL",
+        "WwnnPool": "{{ wwnn_pool_details.api_response.Moid }}",
+        "StaticWwnnAddress": ""
+       }
+    when: existing_san_policy.api_response == {} or existing_san_policy.api_response.Moid is not defined
+    register: san_connectivity_policy
+
+  # Set the SAN policy Moid for both new and existing scenarios
+  - name: "Set SAN Connectivity Policy Moid"
+    set_fact:
+      san_policy_moid: "{{ san_connectivity_policy.api_response.Moid if san_connectivity_policy is defined and san_connectivity_policy.api_response is defined else existing_san_policy.api_response.Moid }}"
+
+  # Check if vHBA-A already exists
+  - name: "Check if {{ name_of_vhba_a }} exists"
+    cisco.intersight.intersight_rest_api:
+      <<: *api_info
+      resource_path: /vnic/FcIfs
+      query_params:
+        $filter: "Name eq '{{ name_of_vhba_a }}' and SanConnectivityPolicy.Moid eq '{{ san_policy_moid }}'"
+    register: existing_vhba_a
+    failed_when: false
+
+  # Create vHBA-A only if it doesn't exist
+  - name: "Add {{ name_of_vhba_a }} to SAN Connectivity Policy"
+    cisco.intersight.intersight_rest_api:
+      <<: *api_info
+      resource_path: /vnic/FcIfs
+      api_body: {
+        "Name": "{{ name_of_vhba_a }}",
+        "Type": "fc-initiator",
+        "WwpnAddressType": "POOL",
+        "WwpnPool": "{{ wwpn_pool_san_a_details.api_response.Moid }}",
+        "Placement": {
+          "AutoPciLink": true,
+          "AutoSlotId": true,
+          "SwitchId": "A"
+        },
+        "PersistentBindings": false,
+        "FcNetworkPolicy": "{{ fc_network_policy_san_a.api_response.Moid }}",
+        "FcQosPolicy": "{{ fc_qos_policy.api_response.Moid }}",
+        "FcAdapterPolicy": "{{ fc_adapter_policy.api_response.Moid }}",
+        "StaticWwpnAddress": "",
+        "SanConnectivityPolicy": "{{ san_policy_moid }}",
+        "Order": 4
+       }
+    when: existing_vhba_a.api_response == {} or existing_vhba_a.api_response.Moid is not defined
+    register: vhba_a_result
+
+  # Check if vHBA-B already exists
+  - name: "Check if {{ name_of_vhba_b }} exists"
+    cisco.intersight.intersight_rest_api:
+      <<: *api_info
+      resource_path: /vnic/FcIfs
+      query_params:
+        $filter: "Name eq '{{ name_of_vhba_b }}' and SanConnectivityPolicy.Moid eq '{{ san_policy_moid }}'"
+    register: existing_vhba_b
+    failed_when: false
+
+  # Create vHBA-B only if it doesn't exist
+  - name: "Add {{ name_of_vhba_b }} to SAN Connectivity Policy"
+    cisco.intersight.intersight_rest_api:
+      <<: *api_info
+      resource_path: /vnic/FcIfs
+      api_body: {
+        "Name": "{{ name_of_vhba_b }}",
+        "Type": "fc-initiator",
+        "WwpnAddressType": "POOL",
+        "WwpnPool": "{{ wwpn_pool_san_b_details.api_response.Moid }}",
+        "Placement": {
+          "AutoPciLink": true,
+          "AutoSlotId": true,
+          "SwitchId": "B"
+        },
+        "PersistentBindings": false,
+        "FcNetworkPolicy": "{{ fc_network_policy_san_b.api_response.Moid }}",
+        "FcQosPolicy": "{{ fc_qos_policy.api_response.Moid }}",
+        "FcAdapterPolicy": "{{ fc_adapter_policy.api_response.Moid }}",
+        "StaticWwpnAddress": "",
+        "SanConnectivityPolicy": "{{ san_policy_moid }}",
+        "Order": 5
+       }
+    when: existing_vhba_b.api_response == {} or existing_vhba_b.api_response.Moid is not defined
+    register: vhba_b_result
+
+  # Optional: Display creation status
+  - name: "Display SAN Policy Configuration Status"
+    debug:
+      msg:
+        - "SAN Policy '{{ name_of_san_connectivity_policy }}' Moid: {{ san_policy_moid }}"
+        - "{{ name_of_vhba_a }} Status: {{ 'Created' if vhba_a_result.changed | default(false) else 'Already exists' }}"
+        - "{{ name_of_vhba_b }} Status: {{ 'Created' if vhba_b_result.changed | default(false) else 'Already exists' }}"

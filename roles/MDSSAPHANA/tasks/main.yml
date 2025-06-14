@@ -1,0 +1,19 @@
+---
+  # Configuration Role for MDS. 
+  #
+  # Configure Features
+  - include_tasks: configure_mds_da_saphana.yml
+    when: configure_fc == 'true'
+    tags: configure_mds_da_saphana
+  # Configure MDS Zones
+  - include_tasks: configure_mds_zones_saphana.yml
+    when: configure_fc == 'true'
+    tags: configure_mds_zones_saphana
+  # Configure adn Activate MDS Zoneset
+  - include_tasks: activate_mds_zoneset_saphana.yml
+    when: configure_fc == 'true'
+    tags: activate_mds_zoneset_saphana
+  # Save Configuration
+  - include_tasks: save_mds_config_saphana.yml
+    when: configure_fc == 'true'
+    tags: save_mds_config_saphana

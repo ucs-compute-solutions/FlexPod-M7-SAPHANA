@@ -1,0 +1,299 @@
+---
+###############################################################################
+#
+# ESXi / Virtualized Server LUN Configuration
+#
+##############################################################################
+
+# Create the boot LUNs for Servers for iSCSI configuration
+- name: Create the boot LUNs for esxi Servers in iSCSI boot config
+  netapp.ontap.na_ontap_lun:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    name: "{{item.hostname}}-ISCSI"
+    size: "{{svm_specs.boot_luns_iscsi.size}}"
+    flexvol_name: "{{svm_specs.boot_luns_iscsi.residing_vol}}"
+    ostype: "{{svm_specs.os_type}}"
+    space_reserve: false
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{iscsi_esxi_hosts}}"
+  when: 
+    - "('iscsi' in svm_specs.allowed_protocols)"
+    - iscsi_esxi_hosts is defined and iscsi_esxi_hosts is not none and iscsi_esxi_hosts | length > 0
+  tags:
+    - ontap_lun_create_iscsi
+
+# Create the boot LUNs for Servers for FCP configuration
+- name: Create the boot LUNs for esxi Servers in FC boot config
+  netapp.ontap.na_ontap_lun:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    name: "{{item.hostname}}-FCP"
+    size: "{{svm_specs.boot_luns_fcp.size}}"
+    flexvol_name: "{{svm_specs.boot_luns_fcp.residing_vol}}"
+    ostype: "{{svm_specs.os_type}}"
+    space_reserve: false
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{fc_esxi_hosts}}"
+  when:
+    - "('fcp' in svm_specs.allowed_protocols)"
+    - fc_esxi_hosts is defined and fc_esxi_hosts is not none and fc_esxi_hosts | length > 0
+  tags:
+    - ontap_lun_create_fcp
+
+# Create igroups for iSCSI
+- name: Create the igroups for esxi servers in iSCSI boot config
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    initiator: "{{item.iscsi_iqn}}"
+    ostype: "{{svm_specs.os_type}}"
+    initiator_group_type: iscsi
+    name: "{{item.hostname}}-ISCSI"
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{iscsi_esxi_hosts}}"
+  when: 
+    - "('iscsi' in svm_specs.allowed_protocols)"
+  ignore_errors: true
+  tags:
+    - ontap_iscsi_igroup_create
+
+# Getting the FCP igroup names with their corresponding WWPNs
+- name: Get the FCP igroup names with their corresponding WWPNs of esxi nodes
+  ansible.builtin.set_fact:
+    fcp_igroup_wwpn_list: "{{ fcp_igroup_wwpn_list|default([]) + [ {'igroup_name': item.hostname, 'wwpns': [item.fcp_a_wwpn,item.fcp_b_wwpn]} ] }}"
+  with_items:
+    - "{{fc_esxi_hosts}}"
+  when:
+    - "('fcp' in svm_specs.allowed_protocols)"
+    - fc_esxi_hosts is defined and fc_esxi_hosts is not none and fc_esxi_hosts | length > 0
+  tags:
+    - ontap_fcp_igroup_create
+
+# Create igroups for FCP
+# For FCP, we need to add multiple WWPNs from the single host to an igroup
+- name: Create the igroups for FC booting esxi nodes
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    initiators: "{{item.wwpns}}"
+    ostype: "{{svm_specs.os_type}}"
+    initiator_group_type: fcp
+    name: "{{item.igroup_name}}-FCP"
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{fcp_igroup_wwpn_list}}"
+  when: 
+    - "('fcp' in svm_specs.allowed_protocols)"
+    -  fcp_igroups_wwpn_list is defined and fcp_igroup_wwpn_list is not none and fcp_igroup_wwpn_list | length > 0
+  tags:
+    - ontap_fcp_igroup_create
+
+# Map the LUNs to iSCSI igroups
+- name: Mapping LUN to iSCSI igroup for esxi nodes 
+  netapp.ontap.na_ontap_lun_map:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    initiator_group_name: "{{item.hostname}}-ISCSI"
+    path: /vol/{{svm_specs.boot_luns_iscsi.residing_vol}}/{{item.hostname}}-ISCSI
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{iscsi_esxi_hosts}}"
+  when: 
+    - "('iscsi' in svm_specs.allowed_protocols)"
+    - iscsi_esxi_hosts is defined and iscsi_esxi_hosts is not none and iscsi_esxi_hosts | length > 0
+  tags:
+    - ontap_map_lun_to_igroup_iscsi
+
+# Map the LUNs to FCP igroups
+- name: Mapping LUN to FCP igroup for esxi nodes
+  netapp.ontap.na_ontap_lun_map:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    initiator_group_name: "{{item.hostname}}-FCP"
+    path: /vol/{{svm_specs.boot_luns_iscsi.residing_vol}}/{{item.hostname}}-FCP
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{fc_esxi_hosts}}"
+  when: 
+    - "('fcp' in svm_specs.allowed_protocols)"
+    - fc_esxi_hosts is defined and fc_esxi_hosts is not none and fc_esxi_hosts | length > 0
+  tags:
+    - ontap_map_lun_to_igroup_fcp
+
+
+###############################################################################
+#
+# Baremetal Server LUN Configuration
+#
+##############################################################################
+#
+
+# Create the boot LUNs for Servers for baremetal iSCSI configuration
+- name: Create the boot LUNs for baremetal Servers in iSCSI boot config
+  netapp.ontap.na_ontap_lun:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    name: "{{item.hostname}}-ISCSI"
+    size: "{{svm_specs.boot_luns_iscsi_bm.size}}"
+    flexvol_name: "{{svm_specs.boot_luns_iscsi_bm.residing_vol}}"
+    ostype: "{{svm_specs.os_type_bm}}"
+    space_reserve: false
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{iscsi_bm_hosts}}"
+  when: 
+    - "('iscsi' in svm_specs.allowed_protocols)"
+    - iscsi_bm_hosts is defined and iscsi_bm_hosts is not none and iscsi_bm_hosts | length > 0
+  tags:
+    - ontap_lun_create_iscsi_bm
+
+# Create the boot LUNs for Servers for baremetal FCP configuration
+- name: Create the boot LUNs for baremetal Servers in FC boot config
+  netapp.ontap.na_ontap_lun:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    name: "{{item.hostname}}-FCP"
+    size: "{{svm_specs.boot_luns_fcp_bm.size}}"
+    flexvol_name: "{{svm_specs.boot_luns_fcp_bm.residing_vol}}"
+    ostype: "{{svm_specs.os_type_bm}}"
+    space_reserve: false
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{fc_bm_hosts}}"
+  when: 
+    - "('fcp' in svm_specs.allowed_protocols)"
+    - fc_bm_hosts is defined and fc_bm_hosts is not none and fc_bm_hosts | length > 0
+  tags:
+    - ontap_lun_create_fcp_bm
+
+# Create igroups for baremetal iSCSI
+- name: Create the igroups for baremetal iSCSI booting nodes
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    initiator: "{{item.iscsi_iqn}}"
+    ostype: "{{svm_specs.os_type_bm}}"
+    initiator_group_type: iscsi
+    name: "{{item.hostname}}-ISCSI"
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{iscsi_bm_hosts}}"
+  when: 
+    - "('iscsi' in svm_specs.allowed_protocols)"
+    - iscsi_bm_hosts is defined and iscsi_bm_hosts is not none and iscsi_bm_hosts | length > 0
+  tags:
+    - ontap_iscsi_igroup_create_bm
+
+# Getting the FCP igroup names with their corresponding WWPNs
+- name: Get the FCP igroup names with their corresponding WWPNs of baremetal nodes
+  ansible.builtin.set_fact:
+    fcp_igroup_wwpn_list: "{{ fcp_igroup_wwpn_list|default([]) + [ {'igroup_name': item.hostname, 'wwpns': [item.fcp_a_wwpn,item.fcp_b_wwpn]} ] }}"
+  with_items:
+    - "{{fc_bm_hosts}}"
+  when:
+    - "('fcp' in svm_specs.allowed_protocols)"
+    - fc_bm_hosts is defined and fc_bm_hosts is not none and fc_bm_hosts | length > 0
+  tags:
+    - ontap_fcp_igroup_create_bm
+
+# Create igroups for FCP baremetal
+# For FCP, we need to add multiple WWPNs from the single host to an igroup
+- name: Create the igroups for FC booting baremetal nodes
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    initiators: "{{item.wwpns}}"
+    ostype: "{{svm_specs.os_type_bm}}"
+    initiator_group_type: fcp
+    name: "{{item.igroup_name}}-FCP"
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{fcp_igroup_wwpn_list}}"
+  when: 
+    - "('fcp' in svm_specs.allowed_protocols)"
+  tags:
+    - ontap_fcp_igroup_create_bm
+
+# Map the LUNs to iSCSI igroups baremetal
+- name: Mapping LUN to iSCSI igroup for baremetal nodes
+  netapp.ontap.na_ontap_lun_map:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    initiator_group_name: "{{item.hostname}}-ISCSI"
+    path: /vol/{{svm_specs.boot_luns_iscsi_bm.residing_vol}}/{{item.hostname}}-ISCSI
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{iscsi_bm_hosts}}"
+  when: 
+    - "('iscsi' in svm_specs.allowed_protocols)"
+    - iscsi_bm_hosts is defined and iscsi_bm_hosts is not none and iscsi_bm_hosts | length > 0
+  tags:
+    - ontap_map_lun_to_igroup_iscsi_bm
+
+# Map the LUNs to FCP igroups baremtal
+- name: Mapping LUN to FCP igroup for baremetal nodes
+  netapp.ontap.na_ontap_lun_map:
+    state: present
+    vserver: "{{svm_specs.svm_name}}"
+    initiator_group_name: "{{item.hostname}}-FCP"
+    path: /vol/{{svm_specs.boot_luns_iscsi_bm.residing_vol}}/{{item.hostname}}-FCP
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{fc_bm_hosts}}"
+  when: 
+    - "('fcp' in svm_specs.allowed_protocols)"
+    - fc_bm_hosts is defined and fc_bm_hosts is not none and fc_bm_hosts | length > 0
+  tags:
+    - ontap_map_lun_to_igroup_fcp_bm

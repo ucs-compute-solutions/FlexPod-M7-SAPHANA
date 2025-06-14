@@ -1,0 +1,63 @@
+---
+# Create Server Profile Template for baremetal iSCSI booting scaleuout HANA nodes
+- name: "Configure Server Profiles Template for bare metal M7 iSCSI booting scale-out HANA nodes"
+  vars:
+        api_info: &api_info_assign_iscsi_bm_SO
+          api_private_key: "{{ api_private_key }}"
+          api_key_id: "{{ api_key_id }}"
+          api_uri: "{{ api_uri | default(omit) }}"
+          validate_certs: "{{ validates_certs | default(omit) }}"
+          state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+          <<: *api_info_assign_iscsi_bm_SO
+          resource_path: /server/ProfileTemplates
+          query_params:
+            $filter: "Name eq '{{ name_of_bm_iscsi_scaleout_SPT }}'"
+          api_body: {
+              "Action": "No-op",
+              "Name": "{{ name_of_bm_iscsi_scaleout_SPT }}",
+              "Description": "{{ description_of_bm_iscsi_scaleout_SPT }}",
+              ClassId: "server.ProfileTemplate",
+              "PolicyBucket": [
+                {
+                  "Moid": "{{ bm_bios_policy_details.api_response.Moid }}",
+                  "ObjectType": "bios.Policy"
+                },
+                {
+                  "Moid": "{{ iscsi_boot_order_policy_details.api_response.Moid }}",
+                  "ObjectType": "boot.PrecisionPolicy"
+                },
+                {
+                  "Moid": "{{ imc_access_policy_details.api_response.Moid }}",
+                  "ObjectType": "access.Policy"
+                },
+                {
+                  "Moid": "{{ ipmi_policy_details.api_response.Moid }}",
+                  "ObjectType": "ipmioverlan.Policy"
+                },
+                {
+                  "Moid": "{{ iscsiSO_lan_connectivity_policy_details.api_response.Moid }}",
+                  "ObjectType": "vnic.LanConnectivityPolicy"
+                },
+                {
+                  "Moid": "{{ kvm_policy_details.api_response.Moid }}",
+                  "ObjectType": "kvm.Policy"
+                },
+                {
+                  "Moid": "{{ vmedia_policy_details.api_response.Moid }}",
+                  "ObjectType": "vmedia.Policy"
+                }
+              ],
+              "TargetPlatform": "FIAttached",
+              "Organization": {
+                "Moid": "{{ intersight_org.api_response.Moid }}"
+              },
+              Tags: [{Key: "configmode", Value: "ansible"},{Key: "prefix", Value: "{{ prefix }}"}],
+              UuidAddressType: "POOL",
+              UuidPool: {
+                "Moid": "{{ uuid_pool_details.api_response.Moid }}"
+              }
+            }
+  when: (configure_iscsi == 'true') and (configure_bm == 'true') and (configure_so == 'true')
+

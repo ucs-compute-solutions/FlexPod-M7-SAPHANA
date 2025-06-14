@@ -1,0 +1,437 @@
+---
+
+# Get FI VLAN Policy for Adding HANA specific VLANs
+- name: "Get FI VLAN Policy Details"
+  vars:
+    api_info: &api_info_fi_vlan_policy
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  intersight_rest_api:
+    <<: *api_info_fi_vlan_policy
+    resource_path: /fabric/EthNetworkPolicies
+    query_params:
+      $filter: "Name eq '{{ name_of_fi_vlan_policy }}'"
+
+  register:  fi_vlan_policy
+
+# Get FI Multicast Policy for Adding HANA specific VLANs
+- name: "Get FI Multicast Policy Details"
+  vars:
+    api_info: &api_info_fi_mcast_policy
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  intersight_rest_api:
+    <<: *api_info_fi_mcast_policy
+    resource_path: /fabric/MulticastPolicies
+    query_params:
+      $filter: "Name eq '{{ name_of_fi_mcast_policy }}'"
+
+  register: multicast_policy
+  
+- name: "Update FI VLAN Policy"
+  vars:
+    api_info: &api_fi_vlan
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+  block:
+  - name: "Add {{ vm_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ vm_vlan_name }}_{{ vm_vlan_id }}'"
+        api_body: {
+          "Requests": [
+		        {
+			        "Body": {
+				         "AutoAllowOnUplinks": true,
+				         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+				         "IsNative": false,
+				         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+				         "Name": '{{ vm_vlan_name }}_{{ vm_vlan_id }}',
+				         "PrimaryVlanId": 0,
+				         "SharingType": "None",
+                 "VlanId": "{{ vm_vlan_id }}"
+              },
+			      "ObjectType": "bulk.RestSubRequest"
+		        }
+	        ],
+	        "Uri": "/v1/fabric/Vlans",
+	        "Verb": "POST"
+      }
+
+  - name: "Add {{ nfs_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ nfs_vlan_name }}_{{ nfs_vlan_id }}'"
+        api_body: {
+          "Requests": [
+		        {
+			        "Body": {
+				         "AutoAllowOnUplinks": true,
+				         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+				         "IsNative": false,
+				         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+				         "Name": '{{ nfs_vlan_name }}_{{ nfs_vlan_id }}',
+				         "PrimaryVlanId": 0,
+				         "SharingType": "None",
+                 "VlanId": "{{ nfs_vlan_id }}"
+              },
+			      "ObjectType": "bulk.RestSubRequest"
+		        }
+	        ],
+	        "Uri": "/v1/fabric/Vlans",
+	        "Verb": "POST"
+      }
+    when: configure_nfs == 'true'
+
+  - name: "Add {{ hanaappsrv_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ hanaappsrv_vlan_name }}_{{ hanaappsrv_vlan_id }}'"
+        api_body: {
+          "Requests": [
+		        {
+			        "Body": {
+				         "AutoAllowOnUplinks": true,
+				         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+				         "IsNative": false,
+				         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+				         "Name": '{{ hanaappsrv_vlan_name }}_{{ hanaappsrv_vlan_id }}',
+				         "PrimaryVlanId": 0,
+				         "SharingType": "None",
+                 "VlanId": "{{ hanaappsrv_vlan_id }}"
+              },
+			      "ObjectType": "bulk.RestSubRequest"
+		        }
+	        ],
+	        "Uri": "/v1/fabric/Vlans",
+	        "Verb": "POST"
+      }
+
+  - name: "Add {{ iscsiA_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ iscsiA_vlan_name }}_{{ iscsiA_vlan_id }}'"
+        api_body: {
+          "Requests": [
+		        {
+			        "Body": {
+				         "AutoAllowOnUplinks": true,
+				         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+				         "IsNative": false,
+				         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+				         "Name": '{{ iscsiA_vlan_name }}_{{ iscsiA_vlan_id }}',
+				         "PrimaryVlanId": 0,
+				         "SharingType": "None",
+                 "VlanId": "{{ iscsiA_vlan_id }}"
+              },
+			      "ObjectType": "bulk.RestSubRequest"
+		        }
+	        ],
+	        "Uri": "/v1/fabric/Vlans",
+	        "Verb": "POST"
+      }
+
+  - name: "Add {{ iscsiB_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ iscsiB_vlan_name }}_{{ iscsiB_vlan_id }}'"
+        api_body: {
+          "Requests": [
+		        {
+			        "Body": {
+				         "AutoAllowOnUplinks": true,
+				         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+				         "IsNative": false,
+				         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+				         "Name": '{{ iscsiB_vlan_name }}_{{ iscsiB_vlan_id }}',
+				         "PrimaryVlanId": 0,
+				         "SharingType": "None",
+                 "VlanId": "{{ iscsiB_vlan_id }}"
+              },
+			      "ObjectType": "bulk.RestSubRequest"
+		        }
+	        ],
+	        "Uri": "/v1/fabric/Vlans",
+	        "Verb": "POST"
+      }
+
+  - name: "Add {{ hanadata_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ hanadata_vlan_name }}_{{ hanadata_vlan_id }}'"
+        api_body: {
+          "Requests": [
+		        {
+			        "Body": {
+				         "AutoAllowOnUplinks": true,
+				         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+				         "IsNative": false,
+				         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+				         "Name": '{{ hanadata_vlan_name }}_{{ hanadata_vlan_id }}',
+				         "PrimaryVlanId": 0,
+				         "SharingType": "None",
+                 "VlanId": "{{ hanadata_vlan_id }}"
+              },
+			      "ObjectType": "bulk.RestSubRequest"
+		        }
+	        ],
+	        "Uri": "/v1/fabric/Vlans",
+	        "Verb": "POST"
+      }
+
+  - name: "Add {{ hanalog_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ hanalog_vlan_name }}_{{ hanalog_vlan_id }}'"
+        api_body: {
+          "Requests": [
+		        {
+			        "Body": {
+				         "AutoAllowOnUplinks": true,
+				         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+				         "IsNative": false,
+				         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+				         "Name": '{{ hanalog_vlan_name }}_{{ hanalog_vlan_id }}',
+				         "PrimaryVlanId": 0,
+				         "SharingType": "None",
+                 "VlanId": "{{ hanalog_vlan_id }}"
+              },
+			      "ObjectType": "bulk.RestSubRequest"
+		        }
+	        ],
+	        "Uri": "/v1/fabric/Vlans",
+	        "Verb": "POST"
+      }
+
+  - name: "Add {{ hanashared_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ hanashared_vlan_name }}_{{ hanashared_vlan_id }}'"
+        api_body: {
+          "Requests": [
+                        {
+                                "Body": {
+                                         "AutoAllowOnUplinks": true,
+                                         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+                                         "IsNative": false,
+                                         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+                                         "Name": '{{ hanashared_vlan_name }}_{{ hanashared_vlan_id }}',
+                                         "PrimaryVlanId": 0,
+                                         "SharingType": "None",
+                 "VlanId": "{{ hanashared_vlan_id }}"
+              },
+                              "ObjectType": "bulk.RestSubRequest"
+                        }
+                ],
+                "Uri": "/v1/fabric/Vlans",
+                "Verb": "POST"
+      }
+
+  - name: "Add {{ hanainternode_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ hanainternode_vlan_name }}_{{ hanainternode_vlan_id }}'"
+        api_body: {
+          "Requests": [
+                        {
+                                "Body": {
+                                         "AutoAllowOnUplinks": true,
+                                         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+                                         "IsNative": false,
+                                         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+                                         "Name": '{{ hanainternode_vlan_name }}_{{ hanainternode_vlan_id }}',
+                                         "PrimaryVlanId": 0,
+                                         "SharingType": "None",
+                 "VlanId": "{{ hanainternode_vlan_id }}"
+              },
+                              "ObjectType": "bulk.RestSubRequest"
+                        }
+                ],
+                "Uri": "/v1/fabric/Vlans",
+                "Verb": "POST"
+      }
+
+  - name: "Add {{ hanabackup_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ hanabackup_vlan_name }}_{{ hanabackup_vlan_id }}'"
+        api_body: {
+          "Requests": [
+                        {
+                                "Body": {
+                                         "AutoAllowOnUplinks": true,
+                                         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+                                         "IsNative": false,
+                                         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+                                         "Name": '{{ hanabackup_vlan_name }}_{{ hanabackup_vlan_id }}',
+                                         "PrimaryVlanId": 0,
+                                         "SharingType": "None",
+                 "VlanId": "{{ hanabackup_vlan_id }}"
+              },
+                              "ObjectType": "bulk.RestSubRequest"
+                        }
+                ],
+                "Uri": "/v1/fabric/Vlans",
+                "Verb": "POST"
+      }
+
+  - name: "Add {{ ib_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ ib_vlan_name }}_{{ ib_vlan_id }}'"
+        api_body: {
+          "Requests": [
+                        {
+                                "Body": {
+                                         "AutoAllowOnUplinks": true,
+                                         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+                                         "IsNative": false,
+                                         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+                                         "Name": '{{ ib_vlan_name }}_{{ ib_vlan_id }}',
+                                         "PrimaryVlanId": 0,
+                                         "SharingType": "None",
+                 "VlanId": "{{ ib_vlan_id }}"
+              },
+                              "ObjectType": "bulk.RestSubRequest"
+                        }
+                ],
+                "Uri": "/v1/fabric/Vlans",
+                "Verb": "POST"
+      }
+
+  - name: "Add {{ vmotion_vlan_name }} to FI VLAN Policy"
+    cisco.intersight.intersight_rest_api:
+        <<: *api_fi_vlan
+        resource_path: /bulk/Requests
+        query_params:
+           $filter: "Name eq '{{ vmotion_vlan_name }}_{{ vmotion_vlan_id }}'"
+        api_body: {
+          "Requests": [
+                        {
+                                "Body": {
+                                         "AutoAllowOnUplinks": true,
+                                         "EthNetworkPolicy": "{{ fi_vlan_policy.api_response.Moid }}",
+                                         "IsNative": false,
+                                         "MulticastPolicy": "{{ multicast_policy.api_response.Moid }}",
+                                         "Name": '{{ vmotion_vlan_name }}_{{ vmotion_vlan_id }}',
+                                         "PrimaryVlanId": 0,
+                                         "SharingType": "None",
+                 "VlanId": "{{ vmotion_vlan_id }}"
+              },
+                              "ObjectType": "bulk.RestSubRequest"
+                        }
+                ],
+                "Uri": "/v1/fabric/Vlans",
+                "Verb": "POST"
+      }
+
+
+# Gather "{{ name_of_ucs_domain }}"-Domain-Profile-A MOID
+- name: "Gather '{{ name_of_ucs_domain }}-Domain-Profile-A' MOID"
+  vars:
+        api_info: &api_info_gather_a
+          api_private_key: "{{ api_private_key }}"
+          api_key_id: "{{ api_key_id }}"
+          api_uri: "{{ api_uri | default(omit) }}"
+          validate_certs: "{{ validates_certs | default(omit) }}"
+          state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+          <<: *api_info_gather_a
+          resource_path: /fabric/SwitchProfiles
+          query_params:
+            $filter: "Name eq '{{ name_of_domain_profile_a }}'"
+  register: domain_profile_a
+
+# Deploy "{{ name_of_ucs_domain }}"-Domain-Profile-A
+- name: "Deploy '{{ name_of_ucs_domain }}-Domain-Profile-A'"
+  vars:
+        api_info: &api_info_deploy_a
+          api_private_key: "{{ api_private_key }}"
+          api_key_id: "{{ api_key_id }}"
+          api_uri: "{{ api_uri | default(omit) }}"
+          validate_certs: "{{ validates_certs | default(omit) }}"
+          update_method: "post"
+          state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+          <<: *api_info_deploy_a
+          resource_path: /fabric/SwitchProfiles/{{ domain_profile_a.api_response.Moid }}
+          api_body: {
+              "Action": "Deploy",
+              "ConfigContext": {
+                "ControlAction": "Deploy"
+              },
+          }
+
+# Gather "{{ name_of_ucs_domain }}"-Domain-Profile-B MOID
+- name: "Gather '{{ name_of_ucs_domain }}-Domain-Profile-B' MOID"
+  vars:
+        api_info: &api_info_gather_b
+          api_private_key: "{{ api_private_key }}"
+          api_key_id: "{{ api_key_id }}"
+          api_uri: "{{ api_uri | default(omit) }}"
+          validate_certs: "{{ validates_certs | default(omit) }}"
+          state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+          <<: *api_info_gather_b
+          resource_path: /fabric/SwitchProfiles
+          query_params:
+            $filter: "Name eq '{{ name_of_domain_profile_b }}'"
+  register: domain_profile_b
+
+# Deploy "{{ name_of_ucs_domain }}"-Domain-Profile-B
+- name: "Deploy '{{ name_of_ucs_domain }}-Domain-Profile-B'"
+  vars:
+        api_info: &api_info_deploy_b
+          api_private_key: "{{ api_private_key }}"
+          api_key_id: "{{ api_key_id }}"
+          api_uri: "{{ api_uri | default(omit) }}"
+          validate_certs: "{{ validates_certs | default(omit) }}"
+          update_method: "post"
+          state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+          <<: *api_info_deploy_b
+          resource_path: /fabric/SwitchProfiles/{{ domain_profile_b.api_response.Moid }}
+          api_body: {
+              "Action": "Deploy",
+              "ConfigContext": {
+                "ControlAction": "Deploy"
+              },
+          }  
+

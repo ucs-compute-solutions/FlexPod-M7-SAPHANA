@@ -1,0 +1,6 @@
+---
+
+description_of_bm_fc_scaleup_SPT: "Server Profile Template for bare metal fc booting scaleup HANA nodes"
+description_of_bm_fc_scaleout_SPT: "Server Profile Template for bare metal fc booting scaleout HANA nodes"
+description_of_bm_iscsi_scaleup_SPT: "Server Profile Template for bare metal iscsi booting sacleup HANA hodes"
+description_of_bm_iscsi_scaleout_SPT: "Server Profile Template for bare metal iscsi booting scaleout HANA nodes"

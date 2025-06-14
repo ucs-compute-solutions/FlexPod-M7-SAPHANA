@@ -1,0 +1,19 @@
+---
+  - name: "Configure Intel M7 Baremetal BIOS Policy"
+    cisco.intersight.intersight_bios_policy:
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      organization: "{{ org_name }}"
+      name: "{{ name_of_bm_bios_policy }}"
+      description: "{{ description_of_bm_bios_policy }}"
+      tags:
+        - Key: "configmode"
+          Value: "ansible"
+        - Key: "prefix"
+          Value: "{{ prefix }}"
+      cdn_enable: "enabled"
+      intel_vt_for_directed_io : "disabled"
+      patrol_scrub: "disabled"
+    register: bm_bios_policy
+    when: configure_bm == 'true'
+

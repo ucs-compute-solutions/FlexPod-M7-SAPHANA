@@ -1,0 +1,30 @@
+---
+# Configure DNS for HANA SVM
+- name: Configure DNS for HANA SVM
+  netapp.ontap.na_ontap_dns:
+    state: present
+    vserver: "{{item.svm_name}}"
+    nameservers: "{{item.dns_server_svm}}"
+    domains: "{{item.dns_domain_svm}}"
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{tenant_specs}}"
+  tags:
+    - ontap_config_dns_svm
+
+# Invoke a Test AutoSupport
+- name: Send a test to AutoSupport
+  netapp.ontap.na_ontap_autosupport_invoke:
+    autosupport_message: "{{autosupport_message}}"
+    type: all
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  tags:
+    - ontap_invoke_autosupport

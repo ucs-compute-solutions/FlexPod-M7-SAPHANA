@@ -1,0 +1,275 @@
+---
+- name: "Configure Ethernet Network Group Policy for HANA-Appserver"
+  vars:
+    api_info: &api_info_hanaapp
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+    <<: *api_info_hanaapp
+    resource_path: /fabric/EthNetworkGroupPolicies
+    query_params:
+       $filter: "Name eq '{{ name_of_network_group_policy_for_hanaappsrv}}'"
+    api_body: {
+      "Name": "{{ name_of_network_group_policy_for_hanaappsrv }}",
+      "Description": "{{ description_of_network_group_policy_for_hanaappsrv }}",
+
+      "Organization": {
+         "Moid": "{{ intersight_org.api_response.Moid }}"
+       },
+      Tags: [{Key: "configmode", Value: "ansible"},{Key: "prefix", Value: "{{ prefix }}"}],
+      "VlanSettings": {
+         "NativeVlan": "{{ hanaappsrv_vlan_id }}",
+         "AllowedVlans": "{{ hanaappsrv_vlan_id|int }}"
+         }
+      }
+  register: hanaappsrv_network_group_policy
+  when: configure_bm == 'true'
+
+  
+- name: "Configure Ethernet Network Group Policy for HANA-Shared"
+  vars:
+    api_info: &api_info_shared
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+    <<: *api_info_shared
+    resource_path: /fabric/EthNetworkGroupPolicies
+    query_params:
+       $filter: "Name eq '{{ name_of_network_group_policy_for_hanashared}}'"
+    api_body: {
+      "Name": "{{ name_of_network_group_policy_for_hanashared }}",
+      "Description": "{{ description_of_network_group_policy_for_hanashared }}",
+
+      "Organization": {
+         "Moid": "{{ intersight_org.api_response.Moid }}"
+       },
+      Tags: [{Key: "configmode", Value: "ansible"},{Key: "prefix", Value: "{{ prefix }}"}],
+      "VlanSettings": {
+         "NativeVlan": "{{ hanashared_vlan_id }}",
+         "AllowedVlans": "{{ hanashared_vlan_id|int }}"
+         }
+      }
+  register: hanashared_network_group_policy
+  when: configure_bm == 'true'
+
+
+- name: "Configure Ethernet Network Group Policy for HANA Internode - multihost system only"
+  vars:
+    api_info: &api_info_internode
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+    <<: *api_info_internode
+    resource_path: /fabric/EthNetworkGroupPolicies
+    query_params:
+       $filter: "Name eq '{{ name_of_network_group_policy_for_hanainternode}}'"
+    api_body: {
+      "Name": "{{ name_of_network_group_policy_for_hanainternode }}",
+      "Description": "{{ description_of_network_group_policy_for_hanainternode }}",
+
+      "Organization": {
+         "Moid": "{{ intersight_org.api_response.Moid }}"
+       },
+      Tags: [{Key: "configmode", Value: "ansible"},{Key: "prefix", Value: "{{ prefix }}"}],
+      "VlanSettings": {
+         "NativeVlan": "{{ hanainternode_vlan_id }}",
+         "AllowedVlans": "{{ hanainternode_vlan_id|int }}"
+         }
+      }
+  register: hanainternode_network_group_policy
+  when: configure_bm == 'true'
+
+
+- name: "Configure Ethernet Network Group Policy for HANA-Admin"
+  vars:
+    api_info: &api_info_admin
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+    <<: *api_info_admin
+    resource_path: /fabric/EthNetworkGroupPolicies
+    query_params:
+       $filter: "Name eq '{{ name_of_network_group_policy_for_hanaadmin}}'"
+    api_body: {
+      "Name": "{{ name_of_network_group_policy_for_hanaadmin }}",
+      "Description": "{{ description_of_network_group_policy_for_hanaadmin }}",
+
+      "Organization": {
+         "Moid": "{{ intersight_org.api_response.Moid }}"
+       },
+      Tags: [{Key: "configmode", Value: "ansible"},{Key: "prefix", Value: "{{ prefix }}"}],
+      "VlanSettings": {
+         "NativeVlan": "{{ ib_vlan_id }}",
+         "AllowedVlans": "{{ ib_vlan_id|int }}"
+         }
+      }
+  register: hanaadmin_network_group_policy
+  when: configure_bm == 'true'
+
+- name: "Configure Ethernet Network Group Policy for HANA-Backup"
+  vars:
+    api_info: &api_info_backup
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+    <<: *api_info_admin
+    resource_path: /fabric/EthNetworkGroupPolicies
+    query_params:
+       $filter: "Name eq '{{ name_of_network_group_policy_for_hanabackup}}'"
+    api_body: {
+      "Name": "{{ name_of_network_group_policy_for_hanabackup }}",
+      "Description": "{{ description_of_network_group_policy_for_hanabackup }}",
+
+      "Organization": {
+         "Moid": "{{ intersight_org.api_response.Moid }}"
+       },
+      Tags: [{Key: "configmode", Value: "ansible"},{Key: "prefix", Value: "{{ prefix }}"}],
+      "VlanSettings": {
+         "NativeVlan": "{{ hanabackup_vlan_id }}",
+         "AllowedVlans": "{{ hanabackup_vlan_id|int }}"
+         }
+      }
+  register: hanabackup_network_group_policy
+  when: configure_bm == 'true'
+
+
+- name: "Configure Ethernet Network Group Policy for HANA-Data"
+  vars:
+    api_info: &api_info_data
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+    <<: *api_info_data
+    resource_path: /fabric/EthNetworkGroupPolicies
+    query_params:
+       $filter: "Name eq '{{ name_of_network_group_policy_for_hanadata}}'"
+    api_body: {
+      "Name": "{{ name_of_network_group_policy_for_hanadata }}",
+      "Description": "{{ description_of_network_group_policy_for_hanadata }}",
+
+      "Organization": {
+         "Moid": "{{ intersight_org.api_response.Moid }}"
+       },
+      Tags: [{Key: "configmode", Value: "ansible"},{Key: "prefix", Value: "{{ prefix }}"}],
+      "VlanSettings": {
+         "NativeVlan": "{{ hanadata_vlan_id }}",
+         "AllowedVlans": "{{ hanadata_vlan_id|int }}"
+         }
+      }
+  register: hanadata_network_group_policy
+  when: configure_bm == 'true'
+
+- name: "Configure Ethernet Network Group Policy for HANA-Log"
+  vars:
+    api_info: &api_info_log
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+    <<: *api_info_log
+    resource_path: /fabric/EthNetworkGroupPolicies
+    query_params:
+       $filter: "Name eq '{{ name_of_network_group_policy_for_hanalog}}'"
+    api_body: {
+      "Name": "{{ name_of_network_group_policy_for_hanalog }}",
+      "Description": "{{ description_of_network_group_policy_for_hanalog }}",
+
+      "Organization": {
+         "Moid": "{{ intersight_org.api_response.Moid }}"
+       },
+      Tags: [{Key: "configmode", Value: "ansible"},{Key: "prefix", Value: "{{ prefix }}"}],
+      "VlanSettings": {
+         "NativeVlan": "{{ hanalog_vlan_id }}",
+         "AllowedVlans": "{{ hanalog_vlan_id|int }}"
+         }
+      }
+  register: hanalog_network_group_policy
+  when: configure_bm == 'true'
+
+- name: "Configure Ethernet Network Group Policy for iSCSI-A"
+  vars:
+    api_info: &api_info_iscsi_a
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+    <<: *api_info_iscsi_a
+    resource_path: /fabric/EthNetworkGroupPolicies
+    query_params:
+       $filter: "Name eq '{{ name_of_network_group_policy_for_iscsi_a }}'"
+    api_body: {
+      "Name": "{{ name_of_network_group_policy_for_iscsi_a }}",
+      "Description": "{{ description_of_network_group_policy_for_iscsi_a }}",
+
+      "Organization": {
+         "Moid": "{{ intersight_org.api_response.Moid }}"
+       },
+      Tags: [{Key: "configmode", Value: "ansible"},{Key: "prefix", Value: "{{ prefix }}"}],
+      "VlanSettings": {
+         "NativeVlan": "{{ iscsiA_vlan_id }}",
+         "AllowedVlans": "{{ iscsiA_vlan_id|int }}"
+         }
+      }
+  register: iscsi_a_network_group_policy
+  when: (configure_iscsi == 'true') and (configure_bm == 'true')
+
+- name: "Configure Ethernet Network Group Policy for iSCSI-B"
+  vars:
+    api_info: &api_info_iscsi_b
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+
+  cisco.intersight.intersight_rest_api:
+    <<: *api_info_iscsi_b
+    resource_path: /fabric/EthNetworkGroupPolicies
+    query_params:
+       $filter: "Name eq '{{ name_of_network_group_policy_for_iscsi_b }}'"
+    api_body: {
+      "Name": "{{ name_of_network_group_policy_for_iscsi_b }}",
+      "Description": "{{ description_of_network_group_policy_for_iscsi_b }}",
+
+      "Organization": {
+         "Moid": "{{ intersight_org.api_response.Moid }}"
+       },
+      Tags: [{Key: "configmode", Value: "ansible"},{Key: "prefix", Value: "{{ prefix }}"}],
+      "VlanSettings": {
+         "NativeVlan": "{{ iscsiB_vlan_id }}",
+         "AllowedVlans": "{{ iscsiB_vlan_id|int }}"
+         }
+      }
+  register: iscsi_b_network_group_policy
+  when: (configure_iscsi == 'true') and (configure_bm == 'true')
+

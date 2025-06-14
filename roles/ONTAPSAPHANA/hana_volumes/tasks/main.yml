@@ -1,0 +1,154 @@
+---
+# Create new export policy for the HANA SVM root volume
+- name: Create a new export policy for the HANA SVM
+  netapp.ontap.na_ontap_export_policy:
+    state: present
+    name: "{{item.export_policy}}"
+    vserver: "{{item.svm_name}}"
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{tenant_specs}}"
+  tags:
+    - ontap_export_policy_config
+
+# Create a new rule in the custom export policy for the HANA SVM root volume
+- name: Configure a rule in the newly created export policy for the HANA SVM
+  netapp.ontap.na_ontap_export_policy_rule:
+    state: present
+    vserver: "{{item.svm_name}}"
+    policy_name: "{{item.export_policy}}"
+    client_match: "{{item.client_match}}"
+    protocol: "{{item.data_protocol}}"
+    ro_rule: sys
+    rw_rule: sys
+    rule_index: 1
+    super_user_security: sys
+    allow_suid: true
+    allow_device_creation: true
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{tenant_specs}}"
+  tags:
+    - ontap_export_policy_config
+
+# Create HANA database data, log, and shared volumes for NFS implementation
+- name: Create data, log, and shared NFS volumes for HANA database
+  netapp.ontap.na_ontap_volume:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    policy: "{{tenant_specs.export_policy}}"
+    name: "{{item.name}}"
+    aggregate_name: "{{item.residing_aggr}}"
+    size: "{{item.size}}"
+    is_online: true
+    space_guarantee: none
+    snapshot_policy: none
+    percent_snapshot_space: 0
+    junction_path: /{{item.name}}
+    atime_update: false
+    snapdir_access: false
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{tenant_specs.nfs_volumes}}"
+  when:
+    - tenant_specs.nfs_volumes is not none
+    - "('nfs' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_hana_nfs_volumes
+
+# Create HANA database data, log, and shared volumes for FC implementation under Scale-Up Systems
+- name: Create data, log, and shared FC volumes for SAP HANA Scale-Up Systems
+  netapp.ontap.na_ontap_volume:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    name: "{{item.name}}"
+    aggregate_name: "{{item.residing_aggr}}"
+    size: "{{item.size}}"
+    is_online: true
+    space_guarantee: none
+    snapshot_policy: none
+    percent_snapshot_space: 0
+    snapdir_access: false
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{tenant_specs.scaleup_fc_volumes}}"
+  when: 
+    - tenant_specs.scaleup_fc_volumes is not none
+    - "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_hana_scaleup_fc_volumes
+
+# Create HANA database data, log, and shared volumes for FC implementation under Scale-Out Systems
+- name: Create data, log, and shared FC volumes for SAP HANA Scale-Out Systems
+  netapp.ontap.na_ontap_volume:
+    state: present
+    vserver: "{{tenant_specs.svm_name}}"
+    name: "{{item.name}}"
+    aggregate_name: "{{item.residing_aggr}}"
+    size: "{{item.size}}"
+    is_online: true
+    space_guarantee: none
+    snapshot_policy: none
+    percent_snapshot_space: 0
+    snapdir_access: false
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{tenant_specs.scaleout_fc_volumes}}"
+  when: 
+    - tenant_specs.scaleout_fc_volumes is not none 
+    - "('fcp' in tenant_specs.allowed_protocols)"
+  tags:
+    - ontap_hana_scaleout_fc_volumes
+
+# Get the SVM root volume information
+- name: Get the SVM root volume information
+  netapp.ontap.na_ontap_rest_info:
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+    use_rest: always
+    use_python_keys: true
+    gather_subset:
+      - volume_info
+    parameters:
+      name: "*root"
+      svm.name: "{{tenant_specs.svm_name}}"
+  register: svm_rootvol
+  tags:
+    - ontap_update_ls_mirrors
+
+# Update set of load-sharing mirrors
+- name: Update load-sharing mirrors
+  netapp.ontap.na_ontap_rest_cli:
+    command: 'snapmirror/update-ls-set'
+    verb: 'POST'
+    body: {'source-path': '{{tenant_specs.svm_name}}:{{svm_rootvol.ontap_info.storage_volumes.records[0].name}}'}
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  tags:
+    - ontap_update_ls_mirrors

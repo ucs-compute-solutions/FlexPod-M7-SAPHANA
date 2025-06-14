@@ -1,0 +1,138 @@
+# This is the top-level variable file that will be used for the FlexPod with SAP HANA. 
+#
+# Setting the following variables to anything but 'true' ('false' is suggested when not using 'true'), will cause the 
+# protocol to not be configured.     
+configure_fc: 'true'
+
+configure_nfs: 'true'
+
+# Update the following lines to setup DNS Server(s)
+# Note: The Nexus and MDS scripts assume exactly 2 DNS servers.
+dns_servers:
+  - ip_address: "172.20.4.53"
+  - ip_address: "172.20.4.54"
+
+# DNS Domain Name for HANA Domain
+dns_domain_name: "cspgb4.local"
+#
+# Storage SAN Identifiers
+#
+# Storage FCP WWPNs of HANA SVM FC LIFs(capture from storage system)
+# Target LIFs
+fcp_hana_01a: '20:04:d0:39:ea:c0:d1:54'
+fcp_hana_02a: '20:06:d0:39:ea:c0:d1:54'
+fcp_hana_01b: '20:05:d0:39:ea:c0:d1:54'
+fcp_hana_02b: '20:08:d0:39:ea:c0:d1:54'
+
+# Bare metal Hosts and their initiator WWPns that need access to HANA LUNs of Tentnat HANA SVM
+fc_bm_hosts:
+  - hostname: "ac03-bm-fc01"  #Nodes of a mulit-host system
+    fcp_a_wwpn: "20:00:00:25:B5:AC:A0:00"
+    fcp_b_wwpn: "20:00:00:25:B5:AC:B0:00"
+  - hostname: "ac03-bm-fc02"  #Nodes of a mulit-host system
+    fcp_a_wwpn: "20:00:00:25:B5:AC:A0:01"
+    fcp_b_wwpn: "20:00:00:25:B5:AC:B0:01"
+  - hostname: "ac03-bm-fc03"  #Nodes of a mulit-host system
+    fcp_a_wwpn: "20:00:00:25:B5:AC:A0:02"
+    fcp_b_wwpn: "20:00:00:25:B5:AC:B0:02"
+
+  - hostname: "ac03-bm-SU"    # SU - Scale-Up
+    fcp_a_wwpn: "20:00:00:25:b5:ac:a0:09"
+    fcp_b_wwpn: "20:00:00:25:b5:ac:b0:09"
+#
+#VSAN Information
+vsan_A_name: 'FlexPod-Fabric-A'
+vsan_A_id: 101
+vsan_A_fcoe_vlan: 101
+#
+vsan_B_name: 'FlexPod-Fabric-B'
+vsan_B_id: 102
+vsan_B_fcoe_vlan: 102
+#
+# Host Names - using FC protocol. If not using the protocol, comment out the list entries.
+# These host names and identifiers will be used for NetApp igroup creation & LUN mapping and Cisco MDS Device Alias 
+# and zone entries.
+# They can also be assigned as UCS Profile names.
+
+scaleup_fc_hosts:                  # For SAP HANA Scale-Up systems
+#  - hostname: "ac03-FCP-bm-SU"    
+#    fcp_a_wwpn: "20:00:00:25:b5:ac:a0:09"
+#    fcp_b_wwpn: "20:00:00:25:b5:ac:b0:09"
+
+scaleout_fc_hosts:                 # For SAP HANA Scale-Out systems
+  - hostname: "ac03-bm-fc01"       
+    fcp_a_wwpn: "20:00:00:25:b5:ac:a0:00"
+    fcp_b_wwpn: "20:00:00:25:b5:ac:b0:00"
+  - hostname: "ac03-bm-fc02"
+    fcp_a_wwpn: "20:00:00:25:b5:ac:a0:01"
+    fcp_b_wwpn: "20:00:00:25:b5:ac:b0:01"
+  - hostname: "ac03-bm-fc03"
+    fcp_a_wwpn: "20:00:00:25:b5:ac:a0:02"
+    fcp_b_wwpn: "20:00:00:25:b5:ac:b0:02"
+
+#
+# This is the list of all the VLANs that will be added to Nexus, NetApp Storage, and UCS.
+# VLAN Names are adjustable and can be modified in here
+# Comment out any VLANs that are not used here and below
+#
+ib_vlan_name: 'IB-MGMT' # IN BAND HANA/Management VLAN
+ib_vlan_id: 1131
+#
+#SAP HANA related VLANs
+hana_data_vlan_name: 'HANA-data'
+hana_data_vlan_id: 1134
+hana_log_vlan_name: 'HANA-log'
+hana_log_vlan_id: 1136
+hana_shared_vlan_name: 'HANA-shared'
+hana_shared_vlan_id: 1137
+#
+# lan_state should be set to 'present' to configure the objects
+# In future, this parameter will be used for deleting the configuration
+#
+lan_state : 'present'
+#
+# VLAN Lists - Comment out or remove any VLANs not being used.
+#
+# The ib_mgmt_vlan_list contains one entry, the HANA/IB-MGMT VLAN.
+#
+ib_mgmt_vlan_list:
+  - name: "{{ ib_vlan_name }}"
+    id: "{{ ib_vlan_id }}"
+    native: 'no'
+    state: "{{ lan_state }}"
+#
+# The storage_vlan_list contains VLANs that are configured on the storage controllers.
+# These VLANs are also configured in the UCS and in the Nexus switches. This list has
+# two extra fields, storage_protocol, and usage. Do not remove these extra fields.
+#
+storage_vlan_list:
+  - name: "{{ hana_data_vlan_name }}"
+    id: "{{ hana_data_vlan_id }}"
+    native: 'no'
+    storage_protocol: NFS
+    usage: data
+    state: "{{lan_state}}"
+  - name: "{{ hana_log_vlan_name }}"
+    id: "{{ hana_log_vlan_id }}"
+    native: 'no'
+    storage_protocol: NFS
+    usage: log
+    state: "{{lan_state}}"
+  - name: "{{ hana_shared_vlan_name }}"
+    id: "{{ hana_shared_vlan_id }}"
+    native: 'no'
+    storage_protocol: NFS
+    usage: shared
+    state: "{{lan_state}}"
+
+# VLANs definitions below will be used to setup trunk ports on Nexus Switches
+# all_vlans_list: for vpc_peer_link and UCS FI trunk ports
+# These VLANs must be same or a subset of the vlan_list above
+# Comment out or remove any VLANs that are not used
+# In future, these values will be auto-generated
+#
+all_vlans_list: "{{ ib_vlan_id }},{{ hana_data_vlan_id }},{{ hana_log_vlan_id }},{{ hana_shared_vlan_id }}"
+# storage_vlans_list: for storage uplink trunk ports
+storage_vlans_list: "{{ ib_vlan_id }},{{ hana_data_vlan_id }},{{ hana_log_vlan_id }},{{ hana_shared_vlan_id }}"
+# mgmt_vlans_list: for uplink/management switch trunk port
+mgmt_vlans_list: "{{ ib_vlan_id }}"

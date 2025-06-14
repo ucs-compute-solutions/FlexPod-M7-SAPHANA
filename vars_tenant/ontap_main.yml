@@ -1,0 +1,98 @@
+---
+# Role variables as per NetApp's prescriptive guidance
+# This can be overridden by a var-file.yml at the command line
+# User's input variables
+
+##################################################################################################################################################
+# Node/ Controller level information
+#
+# Note that cluster specific initial configurations are done as part of Base FlexPod setup
+##################################################################################################################################################
+
+ha_pairs:
+  - ha_no: 1
+    node_specs:
+    - node_name: AC03-A90-01
+      data_aggregates:
+        - {aggr_name: AC03_A90_01_NVME_SSD_1}
+      nfs_data_lifs: {name: data-01, address: 10.113.4.10, netmask: 255.255.255.0}       #Fill out this value only if nfs will be mentioned under allowed_protocols in tenant_specs
+      nfs_log_lifs: {name: log-01, address: 10.113.6.10, netmask: 255.255.255.0}         #Fill out this value only if nfs will be mentioned under allowed_protocols in tenant_specs
+      nfs_shared_lifs: {name: shared-01, address: 10.113.7.10, netmask: 255.255.255.0}   #Fill out this value only if nfs will be mentioned under allowed_protocols in tenant_specs
+      fcp_lifs:         #Fill out this value only if fcp will be mentioned under allowed_protocols in tenant_specs
+        - {name: fcp-hana-01a, home_port: 8a, fabric: A}  #Do not change the fabric ID
+        - {name: fcp-hana-01b, home_port: 8b, fabric: B}  #Do not change the fabric ID
+    - node_name: AC03-A90-02
+      data_aggregates:
+        - {aggr_name: AC03_A90_02_NVME_SSD_1}
+      nfs_data_lifs: {name: data-02, address: 10.113.4.11, netmask: 255.255.255.0}       #Fill out this value only if nfs will be mentioned under allowed_protocols in tenant_specs
+      nfs_log_lifs: {name: log-02, address: 10.113.6.11, netmask: 255.255.255.0}         #Fill out this value only if nfs will be mentioned under allowed_protocols in tenant_specs
+      nfs_shared_lifs: {name: shared-02, address: 10.113.7.11, netmask: 255.255.255.0}   #Fill out this value only if nfs will be mentioned under allowed_protocols in tenant_specs
+      fcp_lifs:         #Fill out this value only if fcp will be mentioned under allowed_protocols in tenant_specs
+        - {name: fcp-hana-02a, home_port: 8a, fabric: A}  #Do not change the fabric ID
+        - {name: fcp-hana-02b, home_port: 8b, fabric: B}  #Do not change the fabric ID
+
+##################################################################################################################################################
+#Tenant/ SVM specific variables
+##################################################################################################################################################
+
+tenant_specs:
+  ipspace: "AC03-HANA"  # Separate IPspace for SAP HANA tenant
+  svm_name: "HANA-SVM"  # SAP HANA TenantSVM name
+  allowed_protocols:    #Provide the values in lower case only. Attention! -> Supported options for this solution are nfs and fcp only!
+    - nfs
+    - fcp
+  client_match:
+    - 10.113.4.0/24
+    - 10.113.6.0/24
+    - 10.113.7.0/24
+  data_protocol: nfs
+  export_policy: "nfs-hana"
+  portset_name: "all_ports"      #Name of the portset
+#Storage sizing: size of Data NFS volune / FC LUN = 1.5 x RAM, Log NFS / LUN size = 1/2 x RAM (RAM <=512GB) and 512Gb (RAM=> 512GB) and HANA shared NFS size = MIN(1xRAM;1TB)
+  nfs_volumes:                   #NFS mounts of HANA data, log and shared for a sample virtualized HANA scaleup system with SID VSU to be directly mounted inside VM
+    - {name: VSU_data_mnt00001, size: 768, residing_aggr: AC03_A90_01_NVME_SSD_1}     #Provide data, log, and shared NFS volumes info for HANA database
+    - {name: VSU_log_mnt00001, size: 256, residing_aggr: AC03_A90_02_NVME_SSD_1}       #Enter size values in gb. Here the sizes are based on RAM = 512GB
+    - {name: VSU_shared, size: 256, residing_aggr: AC03_A90_01_NVME_SSD_1}
+  scaleup_fc_volumes:            #HANA data,log and shared volumes for a baremetal FC scaleup system with SID HSU
+    - {name: HSU_data_mnt00001, size: 1536, residing_aggr: AC03_A90_01_NVME_SSD_1}    #Provide data, log, and shared FC volumes info for SAP HANA Scale-Up Systems
+    - {name: HSU_log_mnt00001, size: 700, residing_aggr: AC03_A90_02_NVME_SSD_1}      #Enter size values in gb
+    - {name: HSU_shared, size: 1536, residing_aggr: AC03_A90_01_NVME_SSD_1}
+  scaleup_fc_luns:               #LUNs derived from above HANA data,log and shared volumes for a sample baremetal FC scaleup system with SID HSU
+    - {name: HSU_data_mnt00001, size: 1024, residing_vol: HSU_data_mnt00001}         #Provide data, log, and shared FC LUNs info for SAP HANA Scale-Up Systems
+    - {name: HSU_log_mnt00001, size: 512, residing_vol: HSU_log_mnt00001}            #Use corresponding FC volume as residing volume here
+    - {name: HSU_shared, size: 1024, residing_vol: HSU_shared}                       #FC LUN for scale-up system is valid as in such a case, /hana/shared is local to that system.
+  scaleout_fc_volumes:           #HANA data,log and shared volumes for a baremetal FC scaleout system with SID HSO
+    - {name: HSO_data_mnt00001, size: 6500, residing_aggr: AC03_A90_01_NVME_SSD_1}    #Provide data, log, and shared FC volumes info for SAP HANA Scale-Out Systems
+    - {name: HSO_log_mnt00001, size: 700, residing_aggr: AC03_A90_02_NVME_SSD_1}      #Enter size values in gb. Here the sizes are based on RAM = 4TiB
+    - {name: HSO_data_mnt00002, size: 6500, residing_aggr: AC03_A90_01_NVME_SSD_1}
+    - {name: HSO_log_mnt00002, size: 700, residing_aggr: AC03_A90_02_NVME_SSD_1}
+    - {name: HSO_shared, size: 1536, residing_aggr: AC03_A90_01_NVME_SSD_1}          # This NFS volume gets mounted directly inside each node of scale-out system.
+  scaleout_fc_luns:              #LUNs derived from above HANA data,log and shared volumes for a sample baremetal FC scaleout system with SID VSU
+    - {name: HSO_data_mnt00001, size: 6144, residing_vol: HSO_data_mnt00001}         #Provide data and log FC LUNs info for SAP HANA Scale-Out Systems
+    - {name: HSO_log_mnt00001, size: 512, residing_vol: HSO_log_mnt00001}            #Use corresponding FC volume as residing volume here. Values here are based on RAM=4TiB
+    - {name: HSO_data_mnt00002, size: 6144, residing_vol: HSO_data_mnt00002}
+    - {name: HSO_log_mnt00002, size: 512, residing_vol: HSO_log_mnt00002}
+  scaleup_os_type: linux
+  scaleout_os_type: linux
+  scaleout_igroup_name: ac03-bm-SO-HSO    #Initiator group for all servers belonging to SAP HANA scale-out system
+  dns_server_svm:
+    - "{{ dns_servers[0].ip_address }}"
+    - "{{ dns_servers[1].ip_address }}"
+  dns_domain_svm: "{{ dns_domain_name }}"
+  vsadmin_password: "{{ password_1 }}"
+  svm_login_banner: "This HANA-SVM is reserved for authorized users only!"
+  svm_mgmt_lif: {lif_name: svm-mgmt, address: 10.113.1.40, netmask: 255.255.255.0, gateway: 10.113.1.254, home_node: AC03-A90-02}
+
+##################################################################################################################################################
+# Default/Best Practice related information - Change only if required
+##################################################################################################################################################
+
+#Name of the Interface group
+ifgrp_name: a0a
+
+#Job Schedule
+job_schedule:
+  - {job_name: 15min-HANA, job_minutes: [0,15,30,45]}  #For creating 15-min interval job schedule, few examples would be [0,15,30,45], [5,20,35,50], [7,22,37,52]. Update as required for your environment
+
+#Text sent in the subject line of the AutoSupport message
+autosupport_message: "FlexPod ONTAP Storage Configuration for the SAP HANA Tenant completed"

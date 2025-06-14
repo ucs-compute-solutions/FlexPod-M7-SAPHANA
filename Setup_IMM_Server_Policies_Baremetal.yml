@@ -1,0 +1,14 @@
+---
+# Creating server policies specific to Converged Infrastrucure stack. These policies are used
+# to configure the Server Profile Template(s)
+
+- name: "Configure IMM Baremetal Server Policies"
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - group_vars/secrets.yml
+    - group_vars/ucs.yml
+
+  # Create Various baremetal Server Policies
+  roles:
+    - role: UCS-IMM/create_baremetal_server_policies

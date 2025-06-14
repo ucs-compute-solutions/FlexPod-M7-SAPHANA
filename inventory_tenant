@@ -1,0 +1,10 @@
+# ONTAP Cluster Management IP. List only one ONTAP cluster IP.
+[ontaptenant]
+10.113.0.20
+
+[mdstenant]
+mdsAtenant ansible_host=10.113.0.7 ansible_user=admin ansible_password="{{ password_1 }}" ansible_network_os=nxos
+mdsBtenant ansible_host=10.113.0.8 ansible_user=admin ansible_password="{{ password_1 }}" ansible_network_os=nxos
+
+# e.g. mdsA ansible_host=192.168.1.4 ansible_user=admin ansible_password="{{ password_1 }}" ansible_network_os=nxos
+# e.g. mdsB ansible_host=192.168.1.5 ansible_user=admin ansible_password="{{ password_1 }}" ansible_network_os=nxos

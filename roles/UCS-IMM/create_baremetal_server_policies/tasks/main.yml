@@ -1,0 +1,88 @@
+---
+# Create  server policies specific to Converged Infrastrucure stack
+- name: "Create IMM Server Policies"
+  vars:
+    api_info: &api_info_org_moid
+      api_private_key: "{{ api_private_key }}"
+      api_key_id: "{{ api_key_id }}"
+      api_uri: "{{ api_uri | default(omit) }}"
+      validate_certs: "{{ validate_certs | default(omit) }}"
+      state: "{{ state | default(omit) }}"
+  intersight_rest_api:
+    <<: *api_info_org_moid
+    resource_path: /organization/Organizations
+    query_params:
+      $filter: "Name eq '{{ org_name }}'"
+  register: intersight_org
+  delegate_to: localhost
+  tags: always
+  run_once: true
+
+# Collect information on existence of Boot Order Policy, LAN Connectivity Policy, and
+# SAN Connectivity Policy
+- include_tasks: gather_policy_info.yml
+
+# Collect information about various pools
+- include_tasks: gather_pool_info.yml
+
+# Create baremetal Bios Policy
+- include_tasks: create_bm_bios_policies.yml
+  when: configure_bm == 'true'
+  tags: create_baremetal_bios_policy
+
+# Create Server Power Policy
+- include_tasks: create_server_power_policy.yml
+  tags: create_server_power_policy
+
+# Create Server Thermal Policy
+- include_tasks: create_server_thermal_policy.yml
+  tags: create_server_thermal_policy
+
+# Create bare metal Ethernet Adapter Policies
+- include_tasks: create_bm_ethernet_adapter_policies.yml
+  when: configure_bm == 'true'
+  tags: create_bm_ethernet_adapter_policies
+
+# Create Ethernet Network Group Policy - VLAN details for vNICs assigned HANA baremetal networks
+- include_tasks: create_bm_ethernet_network_group_policy.yml
+  when: configure_bm == 'true'
+  tags: create_bm_ethernet_network_group_policy
+
+# Create Ethernet QoS Policy
+- include_tasks: create_ethernet_qos_policy.yml
+
+# Create Ethernet Network Control Policy
+- include_tasks: create_ethernet_network_control_policy.yml
+
+#Configure iSCSI Adapter Policy if iSCSI is being configured
+- include_tasks: create_iscsi_adapter_policy.yml
+  when: configure_iscsi == 'true'
+
+# Configure iSCSI Target Policy for boot from SAN if iSCSI is being configured
+- include_tasks: create_iscsi_target_policy.yml
+  when: configure_iscsi == 'true'
+
+# Configure iSCSI Boot Policy (for boot from SAN) if iSCSI is being configured
+- include_tasks: create_iscsi_boot_policy.yml
+  when: configure_iscsi == 'true'
+
+# Create vNIC Templates for BareMetal NICs
+- include_tasks: create_bm_vnic_templates.yml
+  when: configure_bm == 'true'
+  tags: create_bm_hana_vnic_templates
+
+# Configure fc scaleup system LAN Connectivity Policy
+- include_tasks: create_bm_lan_connectivity_policy_scaleup.yml
+  when: (configure_fc == 'true') and (scaleupsys_lan_connectivity_policy.api_response.Moid is not defined) and (configure_bm == 'true')
+
+# Configure fc scaleout system LAN Connectivity Policy
+- include_tasks: create_bm_lan_connectivity_policy_scaleout.yml
+  when: (configure_fc == 'true') and (scaleoutsys_lan_connectivity_policy_details.api_response.Moid is not defined) and (configure_bm == 'true')
+
+# Configure iscsi scaleup system LAN Connectivity Policy
+- include_tasks: create_bmSU_iscsi_lan_connectivity_policy.yml
+  when: (configure_iscsi == 'true') and (bmSU_iscsi_lan_connectivity_policy_details.api_response.Moid is not defined) and (configure_bm == 'true')
+
+# Configure iscsi scaleout system LAN Connectivity Policy
+- include_tasks: create_bmSO_iscsi_lan_connectivity_policy.yml
+  when: (configure_iscsi == 'true') and (bmSO_iscsi_lan_connectivity_policy_details.api_response.Moid is not defined) and (configure_bm == 'true')

@@ -1,0 +1,12 @@
+---
+# Playbook: Configure the Cisco MDS Switches in FlexPod
+- hosts: mdstenant
+  connection: network_cli
+  gather_facts: no
+  vars_files:
+    - group_vars_tenant/all.yml
+    - group_vars_tenant/secrets.yml
+    - vars_tenant/ontap_main.yml
+  roles:
+    - MDSSAPHANA
+

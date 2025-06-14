@@ -1,0 +1,192 @@
+---
+# Configure IPspace for the SAP HANA tenant
+- name: Create an IPspace for the SAP HANA tenant
+  netapp.ontap.na_ontap_ipspace:
+    state: present
+    name: "{{tenant_specs.ipspace}}"
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    use_rest: always
+    https: true
+    validate_certs: false
+  tags:
+    - ontap_create_ipspace
+
+# Create Management Broadcast Domain
+- name: Create HANA Management Broadcast Domain
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    broadcast_domain: "{{item.name}}"
+    ipspace: "{{tenant_specs.ipspace}}"
+    mtu: 1500
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{ib_mgmt_vlan_list}}"
+  tags:
+    - ontap_mgmt_broadcast_domain
+
+# Create Broadcast Domain for HANA-data network
+- name: Create Broadcast Domain for HANA-data network
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    broadcast_domain: "{{item.name}}"
+    ipspace: "{{tenant_specs.ipspace}}"
+    mtu: 9000
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{storage_vlan_list}}"
+  when:
+    - "('nfs' in tenant_specs.allowed_protocols)"
+    - item.storage_protocol == "NFS"
+  tags:
+    - ontap_hana_data_broadcast_domain
+
+# Create Broadcast Domain for HANA-log network
+- name: Create Broadcast Domain for HANA-log network
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    broadcast_domain: "{{item.name}}"
+    ipspace: "{{tenant_specs.ipspace}}"
+    mtu: 9000
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{storage_vlan_list}}"
+  when:
+    - "('nfs' in tenant_specs.allowed_protocols)"
+    - item.storage_protocol == "NFS"
+  tags:
+    - ontap_hana_log_broadcast_domain
+
+# Create Broadcast Domain for HANA-shared network
+- name: Create Broadcast Domain for HANA-shared network
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    broadcast_domain: "{{item.name}}"
+    ipspace: "{{tenant_specs.ipspace}}"
+    mtu: 9000
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{storage_vlan_list}}"
+  when:
+    - "('nfs' in tenant_specs.allowed_protocols)"
+    - item.storage_protocol == "NFS"
+  tags:
+    - ontap_hana_shared_broadcast_domain
+
+# Create management vlan interface and add it to the management broadcast domain
+- name: Create the HANA management VLAN and add it to the HANA management broadcast domain
+  netapp.ontap.na_ontap_net_vlan:
+    state: "{{item.1.state}}"
+    parent_interface: "{{item.2}}"
+    vlanid: "{{item.1.id}}"
+    node: "{{item.0.node_name}}"
+    broadcast_domain: "{{item.1.name}}"
+    ipspace: "{{tenant_specs.ipspace}}"
+    enabled: true
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_nested:
+    - "{{ ha_pairs | map(attribute='node_specs') | flatten }}"
+    - "{{ib_mgmt_vlan_list}}"
+    - "{{ifgrp_name}}"
+  when: item.1.state == "present"
+  tags:
+    - ontap_mgmt_vlan_interface
+
+# Create HANA-data VLANs and add them to the correponding broadcast domains
+- name: Create the HANA-data VLANs and add them to the HANA-data broadcast domains
+  netapp.ontap.na_ontap_net_vlan:
+    state: "{{item.1.state}}"
+    parent_interface: "{{item.2}}"
+    vlanid: "{{item.1.id}}"
+    node: "{{item.0.node_name}}"
+    broadcast_domain: "{{item.1.name}}"
+    ipspace: "{{tenant_specs.ipspace}}"
+    enabled: true
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_nested:
+    - "{{ ha_pairs | map(attribute='node_specs') | flatten }}"
+    - "{{storage_vlan_list}}"
+    - "{{ifgrp_name}}"
+  when:
+    - "('nfs' in tenant_specs.allowed_protocols)"
+    - item.1.storage_protocol == "NFS"
+    - item.1.state == "present"
+  tags:
+    - ontap_hana_data_vlan_interface
+
+# Create HANA-log VLANs and add them to the correponding broadcast domains
+- name: Create the HANA-log VLANs and add them to the HANA-log broadcast domains
+  netapp.ontap.na_ontap_net_vlan:
+    state: "{{item.1.state}}"
+    parent_interface: "{{item.2}}"
+    vlanid: "{{item.1.id}}"
+    node: "{{item.0.node_name}}"
+    broadcast_domain: "{{item.1.name}}"
+    ipspace: "{{tenant_specs.ipspace}}"
+    enabled: true
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_nested:
+    - "{{ ha_pairs | map(attribute='node_specs') | flatten }}"
+    - "{{storage_vlan_list}}"
+    - "{{ifgrp_name}}"
+  when:
+    - "('nfs' in tenant_specs.allowed_protocols)"
+    - item.1.storage_protocol == "NFS"
+    - item.1.state == "present"
+  tags:
+    - ontap_hana_log_vlan_interface
+
+# Create HANA-shared VLANs and add them to the correponding broadcast domains
+- name: Create the HANA-shared VLANs and add them to the HANA-shared broadcast domains
+  netapp.ontap.na_ontap_net_vlan:
+    state: "{{item.1.state}}"
+    parent_interface: "{{item.2}}"
+    vlanid: "{{item.1.id}}"
+    node: "{{item.0.node_name}}"
+    broadcast_domain: "{{item.1.name}}"
+    ipspace: "{{tenant_specs.ipspace}}"
+    enabled: true
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_nested:
+    - "{{ ha_pairs | map(attribute='node_specs') | flatten }}"
+    - "{{storage_vlan_list}}"
+    - "{{ifgrp_name}}"
+  when:
+    - "('nfs' in tenant_specs.allowed_protocols)"
+    - item.1.storage_protocol == "NFS"
+    - item.1.state == "present"
+  tags:
+    - ontap_hana_shared_vlan_interface
