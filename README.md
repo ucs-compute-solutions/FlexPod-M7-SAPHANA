@@ -2,7 +2,7 @@
 
 Note that the scripts in this repository have now been successfully tested with NetApp ONTAP 9.16.1, Cisco Nexus NXOS 10.4(4), and Cisco UCS 4.3(5).
 
-This repository for FlexPod contains Ansible playbooks to configure Cisco Nexus, Cisco UCS Intersight, and NetApp ONTAP. This repository can be used for setting up Cisco devices and NetApp ONTAP Storage in preparation for SAP HANA Tailored Datacenter Integration (TDI) based implementation as covered in the following Cisco Validated Design (CVD): https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/UCS_CVDs/flexpod_saphanatdi_iac_deploy.html.
+This repository for FlexPod contains Ansible playbooks to configure Cisco Nexus, Cisco UCS Intersight, and NetApp ONTAP. This repository can be used for setting up Cisco devices and NetApp ONTAP Storage in preparation for SAP HANA Tailored Datacenter Integration (TDI) based implementation as covered in the following Cisco Validated Design (CVD): [https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/UCS_CVDs/flexpod_saphanatdi_iac_deploy.html.](https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/UCS_CVDs/flexpod_sap_hana_tdi_m7.html)
 
 The CVD lays out the complete process for configuring the FlexPod OpenShift tenant using Ansible. As a prerequisite to this installation FlexPod Base should be installed on the FlexPod using https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/UCS_CVDs/flexpod_base_imm_m7_iac.html. Since these playbooks are intended to save time in setting up a working FlexPod, a complete FlexPod as shown below is needed to execute the playbooks. The Cisco FC and NFS solution based FlexPod as shown below was used to validate these Ansible scripts but FlexPods with NFS only setup are also supported.
 
